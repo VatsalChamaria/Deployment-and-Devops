@@ -1,0 +1,57 @@
+(Progarm.cs) 
+
+builder.Services.AddMemoryCache();
+builder.Logging.AddConsole();
+options.EnableSensitiveDataLogging();
+
+(InventoryController.cs)
+
+private readonly IMemoryCache _cache;
+private readonly LogiTrackContext _context;
+
+public InventoryController(LogiTrackContext context, IMemoryCache cache)
+{
+    _context = context;
+    _cache = cache;
+}
+
+(Http request api inventory)
+
+[HttpGet]
+public IActionResult GetInventory()
+{
+    if (!_cache.TryGetValue("InventoryList", out List<InventoryItem> inventory))
+    {
+        inventory = _context.InventoryItems.AsNoTracking().ToList();
+
+        var cacheEntryOptions = new MemoryCacheEntryOptions()
+            .SetSlidingExpiration(TimeSpan.FromSeconds(30));
+
+        _cache.Set("InventoryList", inventory, cacheEntryOptions);
+    }
+
+    return Ok(inventory);
+}
+
+(Optimize queries in ordercontroller)
+
+[HttpGet("{id}")]
+public IActionResult GetOrder(int id)
+{
+    var order = _context.Orders
+        .Include(o => o.Items)
+        .AsNoTracking()
+        .FirstOrDefault(o => o.OrderId == id);
+
+    if (order == null) return NotFound();
+
+    return Ok(order);
+}
+
+(Measure Performance)
+
+var stopwatch = Stopwatch.StartNew();
+// Run your DB query
+stopwatch.Stop();
+Console.WriteLine($"Query took: {stopwatch.ElapsedMilliseconds}ms");
+
