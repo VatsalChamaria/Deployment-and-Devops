@@ -1,0 +1,81 @@
+(InventoryController)
+
+[ApiController]
+[Route("api/[controller]")]
+public class InventoryController : ControllerBase
+{
+    private readonly LogiTrackContext _context;
+
+    public InventoryController(LogiTrackContext context)
+    {
+        _context = context;
+    }
+
+    [HttpGet]
+    public IActionResult GetInventory() => Ok(_context.InventoryItems.ToList());
+
+    [HttpPost]
+    public IActionResult AddItem([FromBody] InventoryItem item)
+    {
+        _context.InventoryItems.Add(item);
+        _context.SaveChanges();
+        return CreatedAtAction(nameof(GetInventory), new { id = item.ItemId }, item);
+    }
+
+    [HttpDelete("{id}")]
+    public IActionResult DeleteItem(int id)
+    {
+        var item = _context.InventoryItems.Find(id);
+        if (item == null) return NotFound($"Item ID {id} not found.");
+
+        _context.InventoryItems.Remove(item);
+        _context.SaveChanges();
+        return NoContent();
+    }
+}
+
+(OrderController)
+
+[ApiController]
+[Route("api/[controller]")]
+public class OrderController : ControllerBase
+{
+    private readonly LogiTrackContext _context;
+
+    public OrderController(LogiTrackContext context)
+    {
+        _context = context;
+    }
+
+    [HttpGet]
+    public IActionResult GetOrders() =>
+        Ok(_context.Orders.Include(o => o.Items).ToList());
+
+    [HttpGet("{id}")]
+    public IActionResult GetOrder(int id)
+    {
+        var order = _context.Orders.Include(o => o.Items).FirstOrDefault(o => o.OrderId == id);
+        if (order == null) return NotFound($"Order ID {id} not found.");
+        return Ok(order);
+    }
+
+    [HttpPost]
+    public IActionResult CreateOrder([FromBody] Order order)
+    {
+        _context.Orders.Add(order);
+        _context.SaveChanges();
+        return CreatedAtAction(nameof(GetOrder), new { id = order.OrderId }, order);
+    }
+
+    [HttpDelete("{id}")]
+    public IActionResult DeleteOrder(int id)
+    {
+        var order = _context.Orders.Find(id);
+        if (order == null) return NotFound($"Order ID {id} not found.");
+
+        _context.Orders.Remove(order);
+        _context.SaveChanges();
+        return NoContent();
+    }
+}
+
