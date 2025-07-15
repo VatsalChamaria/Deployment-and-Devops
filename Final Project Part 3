@@ -1,0 +1,63 @@
+(Install Asp.Net Core Identity)
+
+dotnet add package Microsoft.AspNetCore.Identity.EntityFrameworkCore
+dotnet add package Microsoft.EntityFrameworkCore.Sqlite
+
+public class ApplicationUser : IdentityUser
+{
+    // Extend this later with user metadata (e.g., FullName, Company)
+}
+
+(Set Up Identity)
+
+public class LogiTrackContext : IdentityDbContext<ApplicationUser>
+{
+    public DbSet<InventoryItem> InventoryItems { get; set; }
+    public DbSet<Order> Orders { get; set; }
+
+    protected override void OnConfiguring(DbContextOptionsBuilder options)
+        => options.UseSqlite("Data Source=logitrack.db");
+}
+
+(Program.cs)
+
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
+    .AddEntityFrameworkStores<LogiTrackContext>()
+    .AddDefaultTokenProviders();
+
+(Authcontroller Endpoints)
+
+[HttpPost("register")]
+public async Task<IActionResult> Register(RegisterDto model)
+{
+    var user = new ApplicationUser { UserName = model.Email, Email = model.Email };
+    var result = await _userManager.CreateAsync(user, model.Password);
+
+    if (!result.Succeeded) return BadRequest(result.Errors);
+
+    await _userManager.AddToRoleAsync(user, "User");
+    return Ok("Registration successful");
+}
+
+[HttpPost("login")]
+public async Task<IActionResult> Login(LoginDto model)
+{
+    var user = await _userManager.FindByEmailAsync(model.Email);
+    if (user == null || !await _userManager.CheckPasswordAsync(user, model.Password))
+        return Unauthorized();
+
+    var roles = await _userManager.GetRolesAsync(user);
+    var token = GenerateJwtToken(user, roles);
+    return Ok(new { Token = token });
+}
+
+(Protect Routes with Authorize)
+
+[Authorize]
+[HttpGet("secure-data")]
+public IActionResult GetSecureData() => Ok("Only authenticated users see this");
+
+[Authorize(Roles = "Manager")]
+[HttpDelete("inventory/{id}")]
+public IActionResult DeleteItem(int id) => ...
+
