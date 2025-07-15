@@ -1,0 +1,6 @@
+if (!_cache.TryGetValue("InventoryList", out var inventory))
+{
+    inventory = _context.InventoryItems.AsNoTracking().ToList();
+    _cache.Set("InventoryList", inventory, TimeSpan.FromMinutes(15));
+}
+
